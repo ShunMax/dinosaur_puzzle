@@ -1,0 +1,64 @@
+[
+  {
+    "id": "head",
+    "label": "頭骨",
+    "src": "/images/skeleton_parts/head.png",
+    "correctX": 260,
+    "correctY": 250,
+    "width": 220,
+    "height": 140,
+    "z": 10
+  },
+  {
+    "id": "ribcage",
+    "label": "胸郭",
+    "src": "/images/skeleton_parts/ribcage.png",
+    "correctX": 520,
+    "correctY": 280,
+    "width": 320,
+    "height": 180,
+    "z": 8
+  },
+  {
+    "id": "pelvis",
+    "label": "骨盤",
+    "src": "/images/skeleton_parts/pelvis.png",
+    "correctX": 650,
+    "correctY": 320,
+    "width": 200,
+    "height": 150,
+    "z": 7
+  },
+  {
+    "id": "leg_left",
+    "label": "左脚",
+    "src": "/images/skeleton_parts/leg_left.png",
+    "correctX": 620,
+    "correctY": 460,
+    "width": 160,
+    "height": 240,
+    "z": 6
+  },
+  {
+    "id": "leg_right",
+    "label": "右脚",
+    "src": "/images/skeleton_parts/leg_right.png",
+    "correctX": 740,
+    "correctY": 470,
+    "width": 160,
+    "height": 240,
+    "z": 6
+  },
+  {
+    "id": "tail",
+    "label": "尾",
+    "src": "/images/skeleton_parts/tail.png",
+    "correctX": 980,
+    "correctY": 320,
+    "width": 420,
+    "height": 160,
+    "z": 4
+  }
+]
+
+

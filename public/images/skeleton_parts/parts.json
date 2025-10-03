@@ -1,0 +1,64 @@
+{
+  "canvas": {
+    "w": 1920,
+    "h": 1080
+  },
+  "parts": [
+    {
+      "id": "skull_neck",
+      "label": "頭骨・首",
+      "src": "/images/skeleton_parts/dinosaur_skull_neck.png",
+      "correctX": 962,
+      "correctY": 539,
+      "width": 1200,
+      "height": 800,
+      "z": 10,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "originX": 0,
+      "originY": 0
+    },
+    {
+      "id": "chest_arms",
+      "label": "胸部・前肢",
+      "src": "/images/skeleton_parts/dinosaur_chest_arms.png",
+      "correctX": 962,
+      "correctY": 539,
+      "width": 1200,
+      "height": 800,
+      "z": 8,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "originX": 0,
+      "originY": 0
+    },
+    {
+      "id": "waist_legs",
+      "label": "腰部・後肢",
+      "src": "/images/skeleton_parts/dinosaur_waist_legs.png",
+      "correctX": 962,
+      "correctY": 539,
+      "width": 1200,
+      "height": 800,
+      "z": 6,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "originX": 0,
+      "originY": 0
+    },
+    {
+      "id": "tail",
+      "label": "尾",
+      "src": "/images/skeleton_parts/dinosaur_tale.png",
+      "correctX": 961,
+      "correctY": 539,
+      "width": 1200,
+      "height": 800,
+      "z": 4,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "originX": 0,
+      "originY": 0
+    }
+  ]
+}
