@@ -166,6 +166,8 @@ function edgePath(
 	nsH: number,
 	arcK: number
 ): string {
+	// NOTE: arcK は将来の形状調整用。現状未使用だが、参照して型エラーを回避
+	void arcK
 	if (polarity === 0) return `L ${sx2} ${sy2}`
 	if (dir === 'h') {
 		const len = Math.abs(sx2 - sx1)
