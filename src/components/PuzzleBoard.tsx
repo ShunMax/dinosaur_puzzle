@@ -50,6 +50,22 @@ export default function PuzzleBoard() {
 	// - 既定は非表示。Ctrl + . で一時的に表示/非表示を切り替える
 	const [showControls, setShowControls] = useState<boolean>(false)
 
+	// ゲームの経過時間を測る（開始時刻を保持）。
+	// リセット時に更新して、クリア時に所要時間を算出します。
+	const gameStartRef = useRef<number>(Date.now())
+
+	// クリア画面の表示と表示用の簡易統計
+	const [showClear, setShowClear] = useState(false)
+	const [clearStats, setClearStats] = useState<{ timeMs: number; accuracy: number; score: number }>({ timeMs: 0, accuracy: 0, score: 0 })
+
+	// mm:ss 形式に整える小さなユーティリティ
+	const formatTime = (ms: number) => {
+        const s = Math.max(0, Math.floor(ms / 1000))
+        const mm = String(Math.floor(s / 60)).padStart(2, '0')
+        const ss = String(s % 60).padStart(2, '0')
+        return `${mm}:${ss}`
+    }
+
 	// Ctrl + . で表示/非表示切替（保存され、次回も維持）
 	useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -373,11 +389,28 @@ export default function PuzzleBoard() {
 		draggingIdRef.current = null
 		pointerRef.current = null
 		setState(scattered)
+		// クリア表示は閉じて、新しい計測を開始
+		setShowClear(false)
+		gameStartRef.current = Date.now()
 	}
 
 	const viewBox = `0 0 ${BOARD_W} ${BOARD_H}`
 
 	const isComplete = completed === parts.length
+
+	// クリア状態に入った瞬間にクリア画面を出し、統計を作る
+	useEffect(() => {
+		if (parts.length === 0) return
+		if (isComplete) {
+			const timeMs = Date.now() - gameStartRef.current
+			const accuracy = 100 // すべて吸着しているので 100% とする（将来は誤差から算出可能）
+			// とても単純なスコア計算: 速いほど高スコア
+			const secs = Math.max(1, Math.round(timeMs / 1000))
+			const score = Math.max(1000, Math.round(200000 / secs))
+			setClearStats({ timeMs, accuracy, score })
+			setShowClear(true)
+		}
+	}, [isComplete, parts.length])
 
 	function exportJson() {
 		const { s, dx, dy } = calcGhostScale()
@@ -552,9 +585,28 @@ export default function PuzzleBoard() {
 				</div>
 			)}
 
-			{/* 完成オーバーレイ（中央に大きく表示） */}
-			{isComplete && (
-				<div className="complete-overlay" aria-live="assertive">完成！</div>
+			{/* クリア演出オーバーレイ（博物館風のスポットライトと統計） */}
+			{showClear && (
+				<div className="clear-overlay" role="dialog" aria-modal="true">
+					<div className="clear-card">
+						{/* スポットライト（装飾） */}
+						<div className="spot left" />
+						<div className="spot right" />
+						{/* 見出し */}
+						<h2 className="clear-title">GAME CLEAR！</h2>
+						{/* 説明文は不要のため非表示 */}
+						{/* 統計表示（スコア・精度・タイム） */}
+						<ul className="clear-stats">
+							<li><span>難易度</span><strong>初級</strong></li>
+							<li><span>スコア</span><strong>{clearStats.score.toLocaleString()}</strong></li>
+							<li><span>タイム</span><strong>{formatTime(clearStats.timeMs)}</strong></li>
+						</ul>
+						{/* 行動ボタン */}
+						<div className="clear-actions">
+							<button className="primary" onClick={resetPieces}>新しいゲーム</button>
+						</div>
+					</div>
+				</div>
 			)}
 
 			{/* いつでも使えるリセットボタン（画面右下に配置） */}
