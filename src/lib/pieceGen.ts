@@ -238,6 +238,8 @@ export type SkeletonPart = {
 	// 任意: トリミング画像の元キャンバス上の左上座標（px）
 	originX?: number
 	originY?: number
+	// 任意: パーツ個別の倍率（1が等倍）
+	scale?: number
 }
 
 export type PartsJson =

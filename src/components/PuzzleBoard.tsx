@@ -176,12 +176,13 @@ export default function PuzzleBoard() {
 
 	function getDisplayedSize(p: SkeletonPart) {
 		const cache = imageCacheRef.current.get(p.src)
+		const partScale = (p as any).scale ?? (scaleById[p.id] ?? 1)
 		if (fitToGhost && cache && ghostSize) {
 			const { s } = calcGhostScale()
-			return { w: cache.width * s * autoFactor, h: cache.height * s * autoFactor }
+			return { w: cache.width * s * autoFactor * partScale, h: cache.height * s * autoFactor * partScale }
 		}
-		const baseW = p.width * (scaleById[p.id] ?? 1)
-		const baseH = p.height * (scaleById[p.id] ?? 1)
+		const baseW = p.width * partScale
+		const baseH = p.height * partScale
 		return { w: baseW * scale, h: baseH * scale }
 	}
 
@@ -192,18 +193,13 @@ export default function PuzzleBoard() {
 	}
 
 	function getTargetPoint(p: SkeletonPart) {
-		// correctX/Y は元キャンバス上の基準点。トリミングしている場合はoriginで戻す
+		// correctX/Y は元キャンバス上の基準点（origin補正は廃止）
 		const c = getCorrectDisplayPos(p)
 		const sz = getDisplayedSize(p)
 		const { ax, ay } = getAnchor(p)
-		const ox = (p as any).originX ? (p as any).originX : 0
-		const oy = (p as any).originY ? (p as any).originY : 0
-		const { s } = calcGhostScale()
-		const originOffsetX = ox * s // 元キャンバス→表示座標への変換
-		const originOffsetY = oy * s
-		// アンカーが(0.5,0.5)なら中心。左上(0,0)なら半分ずらす。さらにorigin分だけ左上に押し戻す
-		const px = c.x + c.dx - (0.5 - ax) * sz.w + originOffsetX
-		const py = c.y + c.dy - (0.5 - ay) * sz.h + originOffsetY
+		// アンカーが(0.5,0.5)なら中心。左上(0,0)なら半分ずらす
+		const px = c.x + c.dx - (0.5 - ax) * sz.w
+		const py = c.y + c.dy - (0.5 - ay) * sz.h
 		return { x: px, y: py }
 	}
 
@@ -336,13 +332,11 @@ export default function PuzzleBoard() {
 			const st = state[p.id]
 			const sz = getDisplayedSize(p)
 			const { ax, ay } = getAnchor(p)
-			const ox = (p as any).originX ? (p as any).originX : 0
-			const oy = (p as any).originY ? (p as any).originY : 0
 			const dispX = st ? st.x : p.correctX * s + dx
 			const dispY = st ? st.y : p.correctY * s + dy
-			// 逆変換: correct = ((disp - dx) + (0.5-ax)*w - originOffset)/s
-			const correctX = ((dispX - dx) + (0.5 - ax) * sz.w - ox * s) / s
-			const correctY = ((dispY - dy) + (0.5 - ay) * sz.h - oy * s) / s
+			// 逆変換（origin補正は廃止）
+			const correctX = ((dispX - dx) + (0.5 - ax) * sz.w) / s
+			const correctY = ((dispY - dy) + (0.5 - ay) * sz.h) / s
 			const cache = imageCacheRef.current.get(p.src)
 			const naturalW = cache ? cache.width : p.width
 			const naturalH = cache ? cache.height : p.height
@@ -357,8 +351,7 @@ export default function PuzzleBoard() {
 				z: (p as any).z ?? 1,
 				anchorX: (p as any).anchorX ?? 0.5,
 				anchorY: (p as any).anchorY ?? 0.5,
-				originX: ox,
-				originY: oy,
+				scale: (p as any).scale ?? 1
 			}
 		})
 		const payload = { canvas: ghostSize ? { w: ghostSize.w, h: ghostSize.h } : { w: 1200, h: 600 }, parts: outParts }
