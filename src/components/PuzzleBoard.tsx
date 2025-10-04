@@ -23,7 +23,9 @@ export default function PuzzleBoard() {
 	const [scale, setScale] = useState(1)
 	const [selectedId, setSelectedId] = useState<string | null>(null)
 	const [scaleById, setScaleById] = useState<Record<string, number>>({})
-	const [preciseHit, setPreciseHit] = useState(false)
+	const [preciseHit, setPreciseHit] = useState(() => {
+        try { const v = localStorage.getItem('puzzle:preciseHit'); return v ? v === '1' : true } catch { return true }
+    })
 	const [hoverId, setHoverId] = useState<string | null>(null)
     const [fitToGhost, setFitToGhost] = useState(() => {
         try {
@@ -33,11 +35,31 @@ export default function PuzzleBoard() {
     })
     const [ghostSize, setGhostSize] = useState<{ w: number; h: number } | null>(null)
     const [autoFactor, setAutoFactor] = useState(() => {
+        // 既定値は160%（1.6）。保存があればそれを優先
         try {
             const v = localStorage.getItem('puzzle:autoFactor')
-            return v ? parseFloat(v) || 1 : 1
-        } catch { return 1 }
+            return v ? parseFloat(v) || 1.6 : 1.6
+        } catch { return 1.6 }
     })
+    const [imagesReady, setImagesReady] = useState(false)
+
+	// 初期位置（リセットで戻すために保存）
+	const initialStateRef = useRef<Record<string, PartState> | null>(null)
+
+	// 開発者向けUI（ツールバー）の表示/非表示を切り替えるスイッチ
+	// - 既定は非表示。Ctrl + . で一時的に表示/非表示を切り替える
+	const [showControls, setShowControls] = useState<boolean>(false)
+
+	// Ctrl + . で表示/非表示切替（保存され、次回も維持）
+	useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === '.') {
+                setShowControls((v) => !v)
+            }
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [])
 	const [showHelp, setShowHelp] = useState(false)
 	const [snapUiPx, setSnapUiPx] = useState(() => {
         try { const v = localStorage.getItem('puzzle:snapPx'); return v ? parseInt(v) : 32 } catch { return 32 }
@@ -101,6 +123,10 @@ export default function PuzzleBoard() {
 					}
 				}
 			}
+			// 初回に限り、現状の座標を初期値として保持しておく
+			if (!initialStateRef.current) {
+				initialStateRef.current = { ...next }
+			}
 			return next
 		})
 	}, [parts])
@@ -110,6 +136,7 @@ export default function PuzzleBoard() {
 		let alive = true
 		async function loadAll() {
 			const uniq = Array.from(new Set(parts.map((p) => p.src)))
+			setImagesReady(false)
 			await Promise.all(
 				uniq.map(
 					(src) =>
@@ -131,6 +158,7 @@ export default function PuzzleBoard() {
 						})
 				)
 			)
+			if (alive) setImagesReady(true)
 		}
 		loadAll()
 		return () => {
@@ -154,6 +182,9 @@ export default function PuzzleBoard() {
     }, [fitToGhost])
     useEffect(() => { try { localStorage.setItem('puzzle:snapPx', String(snapUiPx)) } catch {} }, [snapUiPx])
     useEffect(() => { try { localStorage.setItem('puzzle:snapDeg', String(snapUiDeg)) } catch {} }, [snapUiDeg])
+    useEffect(() => {
+        try { localStorage.setItem('puzzle:preciseHit', preciseHit ? '1' : '0') } catch {}
+    }, [preciseHit])
 
 	function calcGhostScale() {
 		if (!ghostSize) return { s: 1, dx: 0, dy: 0 }
@@ -322,6 +353,28 @@ export default function PuzzleBoard() {
 		[hoverId, state, preciseHit]
 	)
 
+	// すべてのパーツを初期位置に戻す（ユーザー操作用）
+	function resetPieces() {
+		// スナップで固定済みのピースが混在しているとリセット後に掴めないことがあるため、
+		// ここでは必ず「全ピースを散らして fixed=false」にする。
+		const scattered: Record<string, PartState> = {}
+		for (const p of parts) {
+			scattered[p.id] = {
+				id: p.id,
+				x: Math.random() * (BOARD_W - 220) + 110,
+				y: BOARD_H - 130 + Math.random() * 90,
+				rotationDeg: 0,
+				fixed: false,
+			}
+		}
+		// 次回のリセットでも同じ散らばりに戻したい場合は、ここで初期値として更新しておく
+		initialStateRef.current = scattered
+		// ドラッグ状態もクリア
+		draggingIdRef.current = null
+		pointerRef.current = null
+		setState(scattered)
+	}
+
 	const viewBox = `0 0 ${BOARD_W} ${BOARD_H}`
 
 	const isComplete = completed === parts.length
@@ -366,86 +419,57 @@ export default function PuzzleBoard() {
 
 	return (
 		<div className="board-wrap">
-			<div className="toolbar" role="toolbar">
-				<button aria-label="ゴースト表示切替" onClick={() => setGhost((v) => !v)}>
-					ゴースト{ghost ? 'ON' : 'OFF'}
-				</button>
-				<button aria-label="編集モード切替" onClick={() => setEditMode((v) => !v)}>
-					編集{editMode ? 'ON' : 'OFF'}
-				</button>
-				<button aria-label="精密ヒット切替" onClick={() => setPreciseHit((v) => !v)}>
-					精密ヒット{preciseHit ? 'ON' : 'OFF'}
-				</button>
-				<button aria-label="ゴーストに自動合わせ切替" onClick={() => setFitToGhost((v) => !v)}>
-					自動サイズ{fitToGhost ? 'ON' : 'OFF'}
-				</button>
-				{fitToGhost && (
-					<label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-						<span>自動補正</span>
-						<input type="range" min={0.5} max={2} step={0.01} value={autoFactor} onChange={(e) => setAutoFactor(parseFloat(e.target.value))} />
-						<span>{Math.round(autoFactor * 100)}%</span>
-					</label>
-				)}
-				<label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-					<span>スナップ距離</span>
+			{/* タイトル（大きめ・中央） */}
+			<h1 className="title">恐竜骨格パズル（デモ版）</h1>
+			{showControls && (
+            <div className="toolbar" role="toolbar">
+                <button aria-label="ゴースト表示切替" onClick={() => setGhost((v) => !v)}>
+                    ゴースト{ghost ? 'ON' : 'OFF'}
+                </button>
+                <button aria-label="編集モード切替" onClick={() => setEditMode((v) => !v)}>
+                    編集{editMode ? 'ON' : 'OFF'}
+                </button>
+                <button aria-label="精密ヒット切替" onClick={() => setPreciseHit((v) => !v)}>
+                    精密ヒット{preciseHit ? 'ON' : 'OFF'}
+                </button>
+                <button aria-label="JSONを書き出し" onClick={exportJson} disabled={!editMode}>
+                    JSONダウンロード
+                </button>
+                <button aria-label="設定を既定値にリセット" onClick={() => {
+                    setSnapUiPx(32); setSnapUiDeg(5); setAutoFactor(1.6); setFitToGhost(true);
+                }}>設定リセット</button>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span>スナップ距離</span>
                     <input type="range" min={2} max={32} step={1} value={snapUiPx} onChange={(e) => setSnapUiPx(parseInt(e.target.value))} />
                     <span>{snapUiPx}px</span>
-				</label>
-				<label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-					<span>スナップ角度</span>
+                </label>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span>スナップ角度</span>
                     <input type="range" min={0} max={15} step={1} value={snapUiDeg} onChange={(e) => setSnapUiDeg(parseInt(e.target.value))} />
                     <span>±{snapUiDeg}°</span>
-				</label>
-				<button aria-label="配置を初期化" onClick={() => {
-					setState((prev) => {
-						const next: typeof prev = { ...prev }
-						for (const p of parts) {
-							next[p.id] = { id: p.id, x: Math.random() * (BOARD_W - 200) + 100, y: BOARD_H - 120 + Math.random() * 80, rotationDeg: 0, fixed: false }
-						}
-						return next
-					})
-				}}>リセット</button>
-				<button aria-label="ヘルプ" onClick={() => setShowHelp(true)}>ヘルプ</button>
-				<button aria-label="JSONを書き出し" onClick={exportJson} disabled={!editMode}>
-					JSONダウンロード
-				</button>
-				<button aria-label="設定を既定値にリセット" onClick={() => {
-                    setSnapUiPx(32); setSnapUiDeg(5); setAutoFactor(1); setFitToGhost(true);
-                }}>設定リセット</button>
-				<label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-					<span>スケール</span>
-					<input
-						type="range"
-						min={0.5}
-						max={5}
-						step={0.05}
-						value={scale}
-						onChange={(e) => setScale(parseFloat(e.target.value))}
-					/>
-					<span>{Math.round(scale * 100)}%</span>
-				</label>
-				{editMode && selectedId && (
-					<label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 12 }}>
-						<span>選択:{selectedId}倍率</span>
-						<input
-							type="range"
-							min={0.5}
-							max={5}
-							step={0.05}
-							value={scaleById[selectedId] ?? 1}
-							onChange={(e) => {
-								const v = parseFloat(e.target.value)
-								setScaleById((m) => ({ ...m, [selectedId]: v }))
-							}}
-						/>
-					</label>
-				)}
-				<span aria-live="polite">進捗: {completed} / {parts.length}</span>
-			</div>
+                </label>
+                <button aria-label="ゴーストに自動合わせ切替" onClick={() => setFitToGhost((v) => !v)}>
+                    自動サイズ{fitToGhost ? 'ON' : 'OFF'}
+                </button>
+                {fitToGhost && (
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span>自動補正</span>
+                        <input type="range" min={0.5} max={2} step={0.01} value={autoFactor} onChange={(e) => setAutoFactor(parseFloat(e.target.value))} />
+                        <span>{Math.round(autoFactor * 100)}%</span>
+                    </label>
+                )}
+                <span aria-live="polite">進捗: {completed} / {parts.length}</span>
+            </div>
+            )}
+
+			{/* 説明文（控えめ） */}
+			<p className="hint">ドラッグして正しい場所に置いてね！</p>
+
 			<div className="board-outer">
 				<svg
 					ref={svgRef}
 					className="board-svg"
+					data-ready={imagesReady ? 'true' : 'false'}
 					viewBox={viewBox}
 					onPointerMove={(e) => {
 						onPointerMove(e)
@@ -477,7 +501,7 @@ export default function PuzzleBoard() {
                             <image href="/images/skeleton_ghost.png" x={0} y={0} width={BOARD_W} height={BOARD_H} opacity={0.2} />
                         )
                     )}
-					{parts.map((p) => {
+					{imagesReady && parts.map((p) => {
 						const s = state[p.id] ?? {
 							id: p.id,
 							x: p.correctX ?? BOARD_W / 2,
@@ -528,11 +552,13 @@ export default function PuzzleBoard() {
 				</div>
 			)}
 
+			{/* 完成オーバーレイ（中央に大きく表示） */}
 			{isComplete && (
-				<div className="status-bar" aria-live="assertive" style={{ fontWeight: 700 }}>
-					完成！
-				</div>
+				<div className="complete-overlay" aria-live="assertive">完成！</div>
 			)}
+
+			{/* いつでも使えるリセットボタン（画面右下に配置） */}
+			<button className="reset-fab" aria-label="ピースを初期位置にリセット" onClick={resetPieces}>リセット</button>
 		</div>
 	)
 }
